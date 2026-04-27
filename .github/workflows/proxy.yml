@@ -1,0 +1,32 @@
+name: Covert Proxy
+on:
+  push:
+    paths:
+      - "request.json"
+jobs:
+  proxy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+      - name: Fetch target
+        env:
+          REQUEST_FILE: request.json
+          RESPONSE_FILE: response.json
+        run: |
+          if [ -f "$REQUEST_FILE" ]; then
+            TARGET=$(jq -r .url < "$REQUEST_FILE")
+            echo "Fetching: $TARGET"
+            HTTP_CODE=$(curl -s -o response_body.txt -w "%{http_code}" --max-time 30 "$TARGET")
+            echo "{\"url\":\"$TARGET\",\"http_status\":\"$HTTP_CODE\",\"base64_body\":\"$(base64 -w0 response_body.txt)\"}" > "$RESPONSE_FILE"
+          else
+            echo "{\"error\":\"No request.json\"}" > "$RESPONSE_FILE"
+          fi
+      - name: Commit & push response
+        run: |
+          git config user.name "CovertBot"
+          git config user.email "bot@covert.io"
+          git add response.json
+          git commit -m "Auto-response from proxy" || echo "Nothing to commit"
+          git push
