@@ -1,0 +1,23 @@
+name: Covert Proxy
+on:
+  workflow_dispatch:
+jobs:
+  proxy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+      - name: Fetch target
+        run: |
+          TARGET=$(jq -r .url < request.json)
+          echo "Fetching: $TARGET"
+          HTTP_CODE=$(curl -s -o body.txt -w "%{http_code}" --max-time 30 "$TARGET")
+          echo "{\"url\":\"$TARGET\",\"http_status\":\"$HTTP_CODE\",\"base64_body\":\"$(base64 -w0 body.txt)\"}" > response.json
+      - name: Commit response
+        run: |
+          git config user.name "ProxyBot"
+          git config user.email "bot@proxy"
+          git add response.json
+          git commit -m "Proxied response" || echo "No changes"
+          git push
