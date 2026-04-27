@@ -1,0 +1,28 @@
+name: YT Downloader
+on:
+  workflow_dispatch:
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install yt-dlp
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg python3-pip
+          pip3 install -q yt-dlp
+      - name: Download video
+        run: |
+          TARGET=$(jq -r '.url' request.json)
+          RES=$(jq -r '.resolution' request.json)
+          echo "Fetching: $TARGET"
+          yt-dlp -f "$RES" -o "video.%(ext)s" --no-playlist "$TARGET"
+          VIDEO=$(ls video.* | head -1)
+          mv "$VIDEO" downloaded_video.mp4
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: video
+          path: downloaded_video.mp4
